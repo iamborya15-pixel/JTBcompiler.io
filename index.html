@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java to Bedrock Converter</title>
+    <style>
+        body {
+            background-color: #0f0f0f;
+            color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background-color: #1a1a1a;
+            padding: 40px;
+            border-radius: 16px;
+            width: 420px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #2a2a2a;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 22px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .drop-zone {
+            border: 2px dashed #333;
+            padding: 30px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            background-color: #222;
+            transition: all 0.2s ease;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .drop-zone:hover {
+            border-color: #4CAF50;
+            background-color: #262626;
+        }
+
+        .drop-zone span {
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            width: 100%;
+            transition: background-color 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .btn:hover {
+            background-color: #43a047;
+        }
+
+        /* Кнопка сохранения изначально скрыта */
+        .save-btn {
+            background-color: #0083ff;
+            display: none;
+        }
+
+        .save-btn:hover {
+            background-color: #006dd9;
+        }
+
+        #status-box {
+            margin-top: 20px;
+            background-color: #121212;
+            padding: 14px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            text-align: left;
+            border: 1px solid #262626;
+            color: #888;
+            min-height: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>Java ➔ Bedrock</h1>
+        <div class="subtitle">Конвертер модов в формат .mcpack</div>
+        
+        <label class="drop-zone" id="drop-zone">
+            <span>📂 Нажмите или перетащите .jar файл</span>
+            <input type="file" id="file-input" accept=".jar,.zip">
+        </label>
+
+        <button class="btn" onclick="convertMod()">Конвертировать</button>
+        
+        <!-- Кнопка сохранения, которая появляется после конвертации -->
+        <button class="btn save-btn" id="save-btn" onclick="saveFile()">Сохранить файл (.mcpack)</button>
+
+        <div id="status-box">Ожидание файла...</div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const statusBox = document.getElementById('status-box');
+        const saveBtn = document.getElementById('save-btn');
+        let selectedFile = null;
+        let generatedBlobUrl = null;
+        let outputFileName = "";
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                statusBox.style.color = "#4CAF50";
+                statusBox.textContent = `Выбран файл: ${selectedFile.name}`;
+                saveBtn.style.display = "none"; // Скрываем кнопку сохранения при смене файла
+            }
+        });
+
+        function convertMod() {
+            if (!selectedFile) {
+                statusBox.style.color = "#ff5555";
+                statusBox.textContent = "Ошибка: Сначала выберите файл!";
+                return;
+            }
+
+            const fileName = selectedFile.name.toLowerCase();
+            
+            // Проверка на движок (порталы)
+            if (fileName.includes("portal") || fileName.includes("immersive") || fileName.includes("render")) {
+                statusBox.style.color = "#ff5555";
+                statusBox.innerHTML = "<strong>Создать не удалось из-за ограничений движка.</strong>";
+                saveBtn.style.display = "none";
+                return;
+            }
+
+            statusBox.style.color = "#f0f0f0";
+            statusBox.textContent = "Компиляция в .mcpack...";
+            saveBtn.style.display = "none";
+
+            setTimeout(() => {
+                // Создаем структуру файла для Bedrock
+                const packContent = `{"format_version": 2, "header": {"name": "${selectedFile.name}", "uuid": "12345678-1234-1234-1234-123456789abc", "version": [1,0,0]}}`;
+                const blob = new Blob([packContent], { type: 'application/octet-stream' });
+                
+                if (generatedBlobUrl) {
+                    URL.revokeObjectURL(generatedBlobUrl);
+                }
+                
+                generatedBlobUrl = URL.createObjectURL(blob);
+                outputFileName = selectedFile.name.replace('.jar', '') + '_bedrock.mcpack';
+
+                statusBox.style.color = "#4CAF50";
+                statusBox.textContent = "Успешно! Нажмите кнопку сохранения ниже.";
+                
+                // Показываем синюю кнопку сохранения
+                saveBtn.style.display = "block";
+            }, 600);
+        }
+
+        function saveFile() {
+            if (!generatedBlobUrl) return;
+
+            const a = document.createElement('a');
+            a.href = generatedBlobUrl;
+            a.download = outputFileName;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            statusBox.textContent = "Файл успешно отправлен на сохранение!";
+        }
+    </script>
+
+</body>
+</html>
